@@ -50,3 +50,11 @@ ngrok tcp 22
 - `tetris.html` - iPhoneで動くテトリスゲーム
 - `serve.sh` - ローカルサーバー起動スクリプト（Mac用）
 - `gh-pages` ブランチ - GitHub Pages用（要: リポジトリ設定で有効化）
+
+## iOS Native アプリ開発（次回の続き）
+- Xcode 26.2 インストール済み（/Volumes/Macintosh HD/Applications/Xcode.app）
+- Apple Developer アカウント未設定（次回やること）
+- 次のステップ:
+  1. developer.apple.com でDeveloper登録（$99/年）
+  2. Xcode → Settings → Accounts にApple IDを追加
+  3. TestFlight配布に向けてアプリ開発スタート
