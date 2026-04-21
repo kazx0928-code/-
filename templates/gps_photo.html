@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS フォト アプリ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f14;
+      color: #e8e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #2a2a40;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header .icon { font-size: 1.6rem; }
+
+    .gps-bar {
+      background: #12121c;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      border-bottom: 1px solid #2a2a40;
+    }
+    .gps-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #555; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .gps-dot.active { background: #00e676; box-shadow: 0 0 6px #00e676; }
+    .gps-dot.error  { background: #ff5252; }
+    #gps-text { color: #aaa; flex: 1; }
+
+    .main { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+    /* Camera section */
+    .camera-section {
+      background: #1a1a2e;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 1px solid #2a2a40;
+    }
+
+    .camera-wrap {
+      position: relative;
+      background: #000;
+      aspect-ratio: 4/3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .camera-placeholder {
+      text-align: center;
+      color: #555;
+    }
+    .camera-placeholder .cam-icon { font-size: 4rem; margin-bottom: 8px; }
+
+    .gps-overlay {
+      position: absolute;
+      bottom: 12px; left: 12px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: #00e676;
+      pointer-events: none;
+    }
+
+    .camera-controls {
+      padding: 14px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary   { background: #3d5af1; color: #fff; }
+    .btn-primary:hover:not(:disabled)   { background: #5470f5; }
+    .btn-capture   { background: #00c853; color: #fff; }
+    .btn-capture:hover:not(:disabled)   { background: #00e676; }
+    .btn-send      { background: #e040fb; color: #fff; }
+    .btn-send:hover:not(:disabled)      { background: #ea80fc; }
+    .btn-danger    { background: #ff5252; color: #fff; }
+    .btn-danger:hover:not(:disabled)    { background: #ff6b6b; }
+    .btn-secondary { background: #2a2a40; color: #ccc; border: 1px solid #3a3a55; }
+    .btn-secondary:hover:not(:disabled) { background: #35355a; }
+
+    /* Folder name input */
+    .folder-row {
+      padding: 0 16px 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .folder-row label { font-size: 0.85rem; color: #aaa; white-space: nowrap; }
+    .folder-row input {
+      flex: 1;
+      background: #12121c;
+      border: 1px solid #3a3a55;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e8e8f0;
+      font-size: 0.9rem;
+    }
+    .folder-row input:focus { outline: none; border-color: #3d5af1; }
+
+    /* Captured queue */
+    .queue-section {
+      background: #1a1a2e;
+      border-radius: 16px;
+      border: 1px solid #2a2a40;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .queue-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2a2a40;
+    }
+    .queue-header h2 { font-size: 1rem; }
+    .badge {
+      background: #3d5af1;
+      color: #fff;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+    .photo-card {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #12121c;
+      aspect-ratio: 1;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .photo-card:hover { border-color: #3d5af1; }
+    .photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-card .num-badge {
+      position: absolute;
+      top: 5px; left: 5px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+    .photo-card .gps-badge {
+      position: absolute;
+      bottom: 5px; left: 5px; right: 5px;
+      background: rgba(0,200,100,0.85);
+      color: #000;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 3px 5px;
+      border-radius: 5px;
+      line-height: 1.3;
+    }
+    .photo-card .gps-badge.no-gps {
+      background: rgba(200,50,50,0.85);
+      color: #fff;
+    }
+    .photo-card .del-btn {
+      position: absolute;
+      top: 5px; right: 5px;
+      background: rgba(255,50,50,0.85);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 22px; height: 22px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .photo-card:hover .del-btn { opacity: 1; }
+
+    .empty-queue {
+      text-align: center;
+      padding: 30px;
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    /* Upload result */
+    .result-section {
+      background: #1a1a2e;
+      border-radius: 16px;
+      border: 1px solid #2a2a40;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .result-section h2 {
+      padding: 12px 16px;
+      font-size: 1rem;
+      border-bottom: 1px solid #2a2a40;
+    }
+    .result-list { padding: 14px; }
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      background: #12121c;
+      font-size: 0.85rem;
+    }
+    .result-item .ok  { color: #00e676; }
+    .result-item .err { color: #ff5252; }
+    .result-item .folder-name { font-weight: 700; color: #ea80fc; }
+
+    /* Folder list */
+    .folders-section {
+      background: #1a1a2e;
+      border-radius: 16px;
+      border: 1px solid #2a2a40;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .folders-section h2 {
+      padding: 12px 16px;
+      font-size: 1rem;
+      border-bottom: 1px solid #2a2a40;
+    }
+    .folder-list { padding: 10px 14px; }
+    .folder-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #12121c;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+    }
+    .folder-item .fi { font-size: 1.3rem; }
+    .folder-item .fname { flex: 1; font-weight: 600; }
+    .folder-item .fmeta { color: #888; font-size: 0.78rem; }
+
+    /* Progress overlay */
+    #upload-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #upload-overlay.show { display: flex; }
+    .spinner {
+      width: 52px; height: 52px;
+      border: 4px solid #333;
+      border-top-color: #e040fb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #upload-overlay p { font-size: 1rem; color: #eee; }
+
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="icon">📷</span>
+  <h1>GPS フォト アプリ</h1>
+</header>
+
+<div class="gps-bar">
+  <div class="gps-dot" id="gps-dot"></div>
+  <span id="gps-text">GPS 取得中...</span>
+</div>
+
+<div class="main">
+
+  <!-- Camera -->
+  <div class="camera-section">
+    <div class="camera-wrap">
+      <div class="camera-placeholder" id="cam-placeholder">
+        <div class="cam-icon">📷</div>
+        <div>カメラを起動してください</div>
+      </div>
+      <video id="video" autoplay playsinline style="display:none;"></video>
+      <canvas id="canvas"></canvas>
+      <div class="gps-overlay" id="gps-overlay" style="display:none;"></div>
+    </div>
+
+    <div class="camera-controls">
+      <button class="btn btn-primary" id="btn-start">▶ カメラ起動</button>
+      <button class="btn btn-capture" id="btn-capture" disabled>📸 撮影</button>
+      <button class="btn btn-secondary" id="btn-switch" disabled>🔄 切替</button>
+    </div>
+
+    <div class="folder-row">
+      <label>📁 フォルダ名:</label>
+      <input type="text" id="folder-name" placeholder="例: 現場調査_2024 (空白で自動生成)">
+    </div>
+
+    <div class="camera-controls" style="padding-top:0;">
+      <button class="btn btn-send"   id="btn-send"  disabled>☁ サーバーに送信</button>
+      <button class="btn btn-danger" id="btn-clear" disabled>🗑 キューをクリア</button>
+    </div>
+  </div>
+
+  <!-- Queue -->
+  <div class="queue-section">
+    <div class="queue-header">
+      <h2>撮影済み写真</h2>
+      <span class="badge" id="queue-count">0 枚</span>
+    </div>
+    <div id="photo-grid" class="photo-grid">
+      <div class="empty-queue">写真を撮影するとここに表示されます</div>
+    </div>
+  </div>
+
+  <!-- Upload result -->
+  <div class="result-section" id="result-section" style="display:none;">
+    <h2>📤 送信結果</h2>
+    <div class="result-list" id="result-list"></div>
+  </div>
+
+  <!-- Folder list -->
+  <div class="folders-section">
+    <div class="queue-header">
+      <h2>📂 保存済みフォルダ</h2>
+      <button class="btn btn-secondary" onclick="loadFolders()" style="padding:5px 12px;font-size:0.8rem;">更新</button>
+    </div>
+    <div class="folder-list" id="folder-list">読み込み中...</div>
+  </div>
+
+</div>
+
+<!-- Upload progress overlay -->
+<div id="upload-overlay">
+  <div class="spinner"></div>
+  <p id="upload-msg">アップロード中...</p>
+</div>
+
+<script>
+  // ---- State ----
+  let stream = null;
+  let facingMode = 'environment';
+  let gpsData = null;
+  let gpsWatchId = null;
+  let photoQueue = [];
+
+  // ---- GPS ----
+  function startGPS() {
+    if (!navigator.geolocation) {
+      setGPS(null, 'GPS非対応ブラウザ');
+      return;
+    }
+    gpsWatchId = navigator.geolocation.watchPosition(
+      pos => {
+        gpsData = {
+          latitude:  pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+          accuracy:  Math.round(pos.coords.accuracy)
+        };
+        const txt = `緯度: ${gpsData.latitude}  経度: ${gpsData.longitude}  精度: ±${gpsData.accuracy}m`;
+        setGPS(true, txt);
+        document.getElementById('gps-overlay').textContent = txt;
+        document.getElementById('gps-overlay').style.display = 'block';
+      },
+      err => {
+        gpsData = null;
+        const msgs = {1:'GPS許可が拒否されました', 2:'位置情報を取得できません', 3:'タイムアウト'};
+        setGPS(false, msgs[err.code] || 'GPS エラー');
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+  }
+
+  function setGPS(ok, txt) {
+    const dot  = document.getElementById('gps-dot');
+    const text = document.getElementById('gps-text');
+    dot.className  = 'gps-dot' + (ok === true ? ' active' : ok === false ? ' error' : '');
+    text.textContent = txt;
+  }
+
+  // ---- Camera ----
+  document.getElementById('btn-start').addEventListener('click', startCamera);
+  document.getElementById('btn-switch').addEventListener('click', switchCamera);
+  document.getElementById('btn-capture').addEventListener('click', capturePhoto);
+  document.getElementById('btn-send').addEventListener('click', sendPhotos);
+  document.getElementById('btn-clear').addEventListener('click', clearQueue);
+
+  async function startCamera() {
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+      video.style.display = 'block';
+      document.getElementById('cam-placeholder').style.display = 'none';
+      document.getElementById('btn-capture').disabled = false;
+      document.getElementById('btn-switch').disabled  = false;
+      startGPS();
+    } catch (e) {
+      alert('カメラの起動に失敗しました: ' + e.message);
+    }
+  }
+
+  async function switchCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    await startCamera();
+  }
+
+  function capturePhoto() {
+    const video  = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    // Stamp GPS on image
+    if (gpsData) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, canvas.height - 52, canvas.width, 52);
+      ctx.fillStyle = '#00e676';
+      ctx.font = `bold ${Math.round(canvas.width * 0.022)}px monospace`;
+      ctx.fillText(
+        `GPS  ${gpsData.latitude}, ${gpsData.longitude}  ±${gpsData.accuracy}m  ${new Date().toLocaleString('ja-JP')}`,
+        12, canvas.height - 18
+      );
+    }
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const entry = {
+      image:     dataUrl,
+      latitude:  gpsData ? gpsData.latitude  : null,
+      longitude: gpsData ? gpsData.longitude : null,
+      accuracy:  gpsData ? gpsData.accuracy  : null,
+      timestamp: new Date().toISOString()
+    };
+    photoQueue.push(entry);
+    renderQueue();
+  }
+
+  function renderQueue() {
+    const grid  = document.getElementById('photo-grid');
+    const count = document.getElementById('queue-count');
+    count.textContent = photoQueue.length + ' 枚';
+
+    if (photoQueue.length === 0) {
+      grid.innerHTML = '<div class="empty-queue">写真を撮影するとここに表示されます</div>';
+      document.getElementById('btn-send').disabled  = true;
+      document.getElementById('btn-clear').disabled = true;
+      return;
+    }
+
+    grid.innerHTML = '';
+    photoQueue.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'photo-card';
+
+      const img = document.createElement('img');
+      img.src = p.image;
+      card.appendChild(img);
+
+      const num = document.createElement('div');
+      num.className = 'num-badge';
+      num.textContent = '#' + (i + 1);
+      card.appendChild(num);
+
+      const gps = document.createElement('div');
+      if (p.latitude) {
+        gps.className = 'gps-badge';
+        gps.textContent = `${p.latitude}\n${p.longitude}`;
+      } else {
+        gps.className = 'gps-badge no-gps';
+        gps.textContent = 'GPS なし';
+      }
+      card.appendChild(gps);
+
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.textContent = '✕';
+      del.onclick = (e) => { e.stopPropagation(); photoQueue.splice(i, 1); renderQueue(); };
+      card.appendChild(del);
+
+      grid.appendChild(card);
+    });
+
+    document.getElementById('btn-send').disabled  = false;
+    document.getElementById('btn-clear').disabled = false;
+  }
+
+  function clearQueue() {
+    if (!confirm('キューの写真をすべて削除しますか？')) return;
+    photoQueue = [];
+    renderQueue();
+  }
+
+  // ---- Upload ----
+  async function sendPhotos() {
+    if (photoQueue.length === 0) return;
+
+    const folderName = document.getElementById('folder-name').value.trim();
+    const overlay    = document.getElementById('upload-overlay');
+    const msg        = document.getElementById('upload-msg');
+
+    overlay.classList.add('show');
+    msg.textContent = `${photoQueue.length} 枚をアップロード中...`;
+
+    try {
+      const res = await fetch('/save_photos', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photos: photoQueue, folder_name: folderName })
+      });
+      const data = await res.json();
+      overlay.classList.remove('show');
+
+      if (data.success) {
+        showResult(data);
+        photoQueue = [];
+        renderQueue();
+        document.getElementById('folder-name').value = '';
+        loadFolders();
+      } else {
+        alert('エラー: ' + (data.error || '不明なエラー'));
+      }
+    } catch (e) {
+      overlay.classList.remove('show');
+      alert('送信失敗: ' + e.message);
+    }
+  }
+
+  function showResult(data) {
+    const sec  = document.getElementById('result-section');
+    const list = document.getElementById('result-list');
+    sec.style.display = 'block';
+    list.innerHTML = `
+      <div class="result-item">
+        <span class="ok">✔</span>
+        <span>フォルダ: <strong class="folder-name">${data.folder}</strong></span>
+      </div>
+      <div class="result-item">
+        <span class="ok">✔</span>
+        <span>${data.saved_count} 枚の写真を保存しました</span>
+      </div>
+      <div class="result-item">
+        <span style="color:#aaa">📁</span>
+        <span>パス: uploads/${data.folder}/</span>
+      </div>
+    `;
+    sec.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ---- Folder list ----
+  async function loadFolders() {
+    const list = document.getElementById('folder-list');
+    try {
+      const res  = await fetch('/folders');
+      const data = await res.json();
+      if (data.length === 0) {
+        list.innerHTML = '<div class="empty-queue">まだフォルダはありません</div>';
+        return;
+      }
+      list.innerHTML = data.map(f => `
+        <div class="folder-item">
+          <span class="fi">📁</span>
+          <div>
+            <div class="fname">${f.name}</div>
+            <div class="fmeta">${f.photo_count} 枚  ${f.created_at ? new Date(f.created_at).toLocaleString('ja-JP') : ''}</div>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="empty-queue" style="color:#f55;">フォルダ読み込み失敗</div>';
+    }
+  }
+
+  loadFolders();
+</script>
+</body>
+</html>
