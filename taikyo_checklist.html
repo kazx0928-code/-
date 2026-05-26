@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>退去立会いチェックリスト | いこい統合不動産</title>
+<style>
+  :root { --accent:#2a6; --ng:#c00; --line:#bbb; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Hiragino Kaku Gothic Pro", "Noto Sans JP", sans-serif;
+    margin: 0; padding: 0; background: #f4f4f4; color: #222; font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 12px; }
+  h1 { font-size: 20px; text-align: center; margin: 12px 0 4px; }
+  .company { text-align: center; color: #555; font-size: 14px; margin-bottom: 14px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .section-title { background: #333; color: #fff; padding: 8px 12px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 15px; margin: -12px -12px 10px; }
+  label { display:block; font-size: 13px; color:#555; margin: 8px 0 3px; }
+  input[type=text], input[type=date], input[type=number], select, textarea {
+    width: 100%; padding: 10px; font-size: 16px; border: 1px solid var(--line);
+    border-radius: 8px; background:#fff; -webkit-appearance:none; appearance:none;
+  }
+  textarea { min-height: 44px; resize: vertical; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .item { border-bottom: 1px dashed #ddd; padding: 8px 0; }
+  .item:last-child { border-bottom: none; }
+  .item-name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .item-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .item-row .memo { grid-column: 1 / -1; }
+  .settle-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; }
+  .settle-row b { font-size: 18px; }
+  .refund { color: var(--accent); }
+  .btns { position: sticky; bottom: 0; background: #f4f4f4; padding: 10px 0; display:flex; gap:8px; }
+  button {
+    flex: 1; padding: 14px; font-size: 16px; font-weight: bold; border: none;
+    border-radius: 10px; color: #fff; background: var(--accent); cursor: pointer;
+  }
+  button.sub { background: #777; }
+  .sign-row { display:flex; gap:20px; margin-top:10px; }
+  .sign-row div { flex:1; border-bottom:1px solid #333; padding:18px 4px 4px; font-size:13px; color:#555; }
+  .hint { font-size:12px; color:#888; text-align:center; margin:6px 0 14px; }
+
+  /* 印刷 / PDF保存用 */
+  @media print {
+    body { background:#fff; font-size: 11px; }
+    .wrap { max-width:none; padding:0; }
+    .btns, .hint, .no-print { display:none !important; }
+    .card { box-shadow:none; border:1px solid #999; border-radius:0; margin-bottom:8px; padding:8px; page-break-inside: avoid; }
+    .section-title { margin:-8px -8px 8px; border-radius:0; }
+    input, select, textarea { border:none; padding:2px; background:transparent; font-size:11px; }
+    select { padding-right:0; }
+    .item { padding:4px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>退去立会いチェックリスト</h1>
+  <div class="company">いこい統合不動産</div>
+
+  <div class="card">
+    <div class="grid2">
+      <div><label>物件名</label><input type="text" id="property" placeholder="いこいハイツ"></div>
+      <div><label>部屋番号</label><input type="text" id="room" placeholder="101"></div>
+      <div><label>入居者名</label><input type="text" id="tenant" placeholder="山田太郎"></div>
+      <div><label>立会日</label><input type="date" id="inspect_date"></div>
+      <div><label>入居日</label><input type="date" id="move_in"></div>
+      <div><label>退去日</label><input type="date" id="move_out"></div>
+    </div>
+    <label>立会者</label><input type="text" id="inspector" placeholder="いこい太郎">
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="card">
+    <div class="section-title">敷金精算</div>
+    <label>敷金預り額（円）</label>
+    <input type="number" id="deposit" inputmode="numeric" oninput="calc()" placeholder="0">
+    <label>借主負担額・原状回復（円）</label>
+    <input type="number" id="charge" inputmode="numeric" oninput="calc()" placeholder="0">
+    <div class="settle-row refund"><span>返還額</span><b id="refund">¥0</b></div>
+    <label>備考</label><textarea id="remarks" placeholder="経年劣化分は貸主負担 など"></textarea>
+    <div class="sign-row">
+      <div>立会者署名</div>
+      <div>入居者署名</div>
+    </div>
+  </div>
+
+  <div class="hint">入力後「PDF保存」を押し、共有メニューから「PDFを保存」を選んでください。</div>
+  <div class="btns no-print">
+    <button class="sub" onclick="clearAll()">クリア</button>
+    <button onclick="window.print()">PDF保存 / 印刷</button>
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  ["玄関", ["玄関ドア・鍵", "たたき・床", "下駄箱"]],
+  ["居室（洋室・和室）", ["壁クロス", "天井", "床（フローリング/畳/CF）", "建具・ふすま・障子", "窓・網戸・サッシ", "照明・スイッチ", "コンセント"]],
+  ["キッチン", ["シンク・水栓", "コンロ・グリル", "換気扇・レンジフード", "収納・吊戸棚", "壁・床"]],
+  ["浴室・洗面", ["浴槽・シャワー水栓", "換気扇・排水", "洗面台・鏡・水栓"]],
+  ["トイレ", ["便器・タンク", "ウォシュレット", "換気・床"]],
+  ["設備", ["エアコン", "給湯器", "インターホン", "火災警報器"]],
+  ["ベランダ・その他", ["ベランダ・物干し", "クリーニング状況", "鍵返却本数", "リモコン・付属品返却"]],
+];
+const STATUS = ["良好", "汚れ", "破損・要補修"];
+const BURDEN = ["－", "貸主負担", "借主負担", "経年劣化"];
+
+function opts(arr){ return arr.map(v=>`<option>${v}</option>`).join(""); }
+
+function render(){
+  const root = document.getElementById("sections");
+  root.innerHTML = SECTIONS.map(([sec, items]) => `
+    <div class="card">
+      <div class="section-title">${sec}</div>
+      ${items.map(it => `
+        <div class="item">
+          <div class="item-name">${it}</div>
+          <div class="item-row">
+            <select>${opts(STATUS)}</select>
+            <select>${opts(BURDEN)}</select>
+            <input class="memo" type="text" placeholder="経年劣化の内容・補修箇所など">
+          </div>
+        </div>`).join("")}
+    </div>`).join("");
+}
+
+function calc(){
+  const d = +document.getElementById("deposit").value || 0;
+  const c = +document.getElementById("charge").value || 0;
+  document.getElementById("refund").textContent = "¥" + (d - c).toLocaleString();
+}
+
+function clearAll(){
+  if(!confirm("入力内容をすべて消去しますか？")) return;
+  document.querySelectorAll("input, textarea").forEach(e => e.value = "");
+  document.querySelectorAll("select").forEach(e => e.selectedIndex = 0);
+  calc();
+}
+
+render();
+// 立会日を今日に初期化
+document.getElementById("inspect_date").valueAsDate = new Date();
+calc();
+</script>
+</body>
+</html>
