@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <title>退去立会いチェックリスト</title>
+    <style>
+        body { font-family: "Hiragino Kaku Gothic Pro", "MS Gothic", sans-serif; margin: 30px; font-size: 10pt; }
+        .header { text-align: center; font-size: 20pt; margin-bottom: 10px; }
+        .company { text-align: center; font-size: 11pt; color: #444; margin-bottom: 20px; }
+        .info { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        .info th, .info td { border: 1px solid #999; padding: 5px 8px; text-align: left; font-size: 9.5pt; }
+        .info th { background: #f0f0f0; width: 90px; }
+        .section-title { background: #333; color: #fff; padding: 4px 8px; margin-top: 14px; font-size: 11pt; }
+        .check { width: 100%; border-collapse: collapse; }
+        .check th, .check td { border: 1px solid #999; padding: 4px 6px; text-align: left; }
+        .check th { background: #f0f0f0; }
+        .col-item { width: 28%; }
+        .col-status { width: 16%; }
+        .col-burden { width: 16%; }
+        .col-memo { width: 40%; }
+        .ng { color: #c00; font-weight: bold; }
+        .settle { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .settle th, .settle td { border: 1px solid #999; padding: 6px 8px; }
+        .settle th { background: #f0f0f0; width: 160px; }
+        .amount { text-align: right; font-weight: bold; }
+        .sign { margin-top: 30px; width: 100%; }
+        .sign td { padding: 14px 8px; border-bottom: 1px solid #333; width: 50%; }
+    </style>
+</head>
+<body>
+    <div class="header">退去立会いチェックリスト</div>
+    <div class="company">{{ company_name }}</div>
+
+    <table class="info">
+        <tr><th>物件名</th><td>{{ property_name }}</td><th>部屋番号</th><td>{{ room_no }}</td></tr>
+        <tr><th>入居者名</th><td>{{ tenant }} 様</td><th>立会日</th><td>{{ inspect_date }}</td></tr>
+        <tr><th>入居日</th><td>{{ move_in }}</td><th>退去日</th><td>{{ move_out }}</td></tr>
+        <tr><th>立会者</th><td colspan="3">{{ inspector }}</td></tr>
+    </table>
+
+    {% for section, items in sections %}
+    <div class="section-title">{{ section }}</div>
+    <table class="check">
+        <tr>
+            <th class="col-item">項目</th>
+            <th class="col-status">状態</th>
+            <th class="col-burden">負担区分</th>
+            <th class="col-memo">経年劣化・メモ</th>
+        </tr>
+        {% for row in items %}
+        <tr>
+            <td>{{ row.item }}</td>
+            <td>{% if row.status == '良好' %}{{ row.status }}{% else %}<span class="ng">{{ row.status }}</span>{% endif %}</td>
+            <td>{{ row.burden }}</td>
+            <td>{{ row.memo }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+
+    <div class="section-title">敷金精算</div>
+    <table class="settle">
+        <tr><th>敷金預り額</th><td class="amount">¥{{ deposit }}</td></tr>
+        <tr><th>借主負担額（原状回復）</th><td class="amount">¥{{ tenant_charge }}</td></tr>
+        <tr><th>返還額</th><td class="amount">¥{{ refund }}</td></tr>
+        <tr><th>備考</th><td>{{ remarks }}</td></tr>
+    </table>
+
+    <table class="sign">
+        <tr>
+            <td>立会者署名：</td>
+            <td>入居者署名：</td>
+        </tr>
+    </table>
+</body>
+</html>
