@@ -88,10 +88,11 @@
     </div>
   </div>
 
-  <div class="hint">入力後「PDF保存」を押し、共有メニューから「PDFを保存」を選んでください。</div>
+  <div class="hint">「サーバーに保存」でDB保存＋PDF発行。「PDF保存/印刷」は端末内だけで保存。</div>
   <div class="btns no-print">
     <button class="sub" onclick="clearAll()">クリア</button>
-    <button onclick="window.print()">PDF保存 / 印刷</button>
+    <button class="sub" onclick="window.print()">PDF保存 / 印刷</button>
+    <button onclick="saveToServer()">サーバーに保存</button>
   </div>
 </div>
 
@@ -138,6 +139,59 @@ function clearAll(){
   document.querySelectorAll("input, textarea").forEach(e => e.value = "");
   document.querySelectorAll("select").forEach(e => e.selectedIndex = 0);
   calc();
+}
+
+function collectData(){
+  const cards = document.querySelectorAll("#sections .card");
+  const sections = [];
+  cards.forEach((card, si) => {
+    const [secName] = SECTIONS[si];
+    const items = [];
+    card.querySelectorAll(".item").forEach(row => {
+      const sels = row.querySelectorAll("select");
+      items.push({
+        item: row.querySelector(".item-name").textContent,
+        status: sels[0].value,
+        burden: sels[1].value,
+        memo: row.querySelector(".memo").value,
+      });
+    });
+    sections.push({ section: secName, items });
+  });
+  return {
+    property: val("property"), room: val("room"), tenant: val("tenant"),
+    move_in: val("move_in"), move_out: val("move_out"),
+    inspect_date: jpDate(val("inspect_date")), inspector: val("inspector"),
+    deposit: val("deposit"), charge: val("charge"), remarks: val("remarks"),
+    sections,
+  };
+}
+function val(id){ return document.getElementById(id).value; }
+function jpDate(v){
+  if(!v) return "";
+  const [y,m,d] = v.split("-");
+  return `${y}年${+m}月${+d}日`;
+}
+
+async function saveToServer(){
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = "保存中...";
+  try {
+    const res = await fetch("/api/inspections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(collectData()),
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if(confirm(`保存しました（ID: ${data.id} / 返還額 ¥${data.refund.toLocaleString()}）。\nPDFを開きますか？`)){
+      window.open(data.pdf_url, "_blank");
+    }
+  } catch(e) {
+    alert("保存に失敗しました: " + e.message + "\nサーバーが起動しているか確認してください。");
+  } finally {
+    btn.disabled = false; btn.textContent = "サーバーに保存";
+  }
 }
 
 render();

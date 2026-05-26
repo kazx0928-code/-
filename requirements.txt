@@ -1,0 +1,5 @@
+flask
+sqlalchemy
+weasyprint
+jinja2
+psycopg2-binary
